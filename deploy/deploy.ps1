@@ -128,33 +128,30 @@ set -e
 rm -rf $EXTRACT_TMP && mkdir -p $EXTRACT_TMP
 tar -xzf $REMOTE_TMP -C $EXTRACT_TMP
 
-# 2. Stop services briefly, copy, restart
-sudo systemctl stop docker 2>/dev/null || true
+# 2. Stop old/wrong containers
+docker compose -p search down 2>/dev/null || true
+docker compose -p weinstein down 2>/dev/null || true
 
-# App code
-sudo cp -r $EXTRACT_TMP/app $REMOTE_DIR/
-sudo cp -r $EXTRACT_TMP/frontend $REMOTE_DIR/
+# 3. Copy files (no sudo needed — carcosa owns /var/www/search)
+cp -r $EXTRACT_TMP/app $REMOTE_DIR/
+cp -r $EXTRACT_TMP/frontend $REMOTE_DIR/
 
-# Compose + Dockerfiles
 for f in $EXTRACT_TMP/docker-compose.yml $EXTRACT_TMP/Dockerfile.*; do
-    [ -f "`$f" ] && sudo cp "`$f" $REMOTE_DIR/
+    [ -f "`$f" ] && cp "`$f" $REMOTE_DIR/
 done
 
-# Apache config
+# 4. Apache config
 if [ -d "$EXTRACT_TMP/apache" ]; then
     sudo cp $EXTRACT_TMP/apache/*.conf /etc/apache2/sites-available/
     sudo a2ensite search.conf 2>/dev/null || true
+    sudo a2dissite weinstein.conf 2>/dev/null || true
 fi
 
-# 3. Ownership
-sudo chown -R www-data:www-data $REMOTE_DIR
-
-# 4. Cleanup
+# 5. Cleanup
 rm -rf $EXTRACT_TMP $REMOTE_TMP
 
-# 5. Restart services
-sudo systemctl restart docker || true
-cd $REMOTE_DIR && sudo docker compose up -d --build
+# 6. Start containers with correct project name and reload Apache
+cd $REMOTE_DIR && docker compose -p search up -d --build
 sudo systemctl reload apache2
 
 echo "Deploy complete."
