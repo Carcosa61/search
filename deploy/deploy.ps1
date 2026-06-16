@@ -137,7 +137,7 @@ sudo cp -r $EXTRACT_TMP/frontend $REMOTE_DIR/
 
 # Compose + Dockerfiles
 for f in $EXTRACT_TMP/docker-compose.yml $EXTRACT_TMP/Dockerfile.*; do
-    [ -f "\$f" ] && sudo cp "\$f" $REMOTE_DIR/
+    [ -f "`$f" ] && sudo cp "`$f" $REMOTE_DIR/
 done
 
 # Apache config
