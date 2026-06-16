@@ -14,7 +14,9 @@
 #>
 param(
     [string] $Message = "",
-    [switch] $SkipGit
+    [switch] $SkipGit,
+    [switch] $Build,           # rebuild all images (Dockerfile / requirements / package.json changed)
+    [switch] $BuildFrontend    # rebuild frontend image only (Next.js / package.json changed)
 )
 
 Set-StrictMode -Version Latest
@@ -128,9 +130,8 @@ set -e
 rm -rf $EXTRACT_TMP && mkdir -p $EXTRACT_TMP
 tar -xzf $REMOTE_TMP -C $EXTRACT_TMP
 
-# 2. Stop old/wrong containers
+# 2. Stop running search containers (leave other projects alone)
 docker compose -p search down 2>/dev/null || true
-docker compose -p weinstein down 2>/dev/null || true
 
 # 3. Reclaim ownership of existing files so carcosa can overwrite them
 sudo chown -R carcosa:carcosa $REMOTE_DIR/app 2>/dev/null || true
@@ -149,14 +150,22 @@ done
 if [ -d "$EXTRACT_TMP/apache" ]; then
     sudo cp $EXTRACT_TMP/apache/*.conf /etc/apache2/sites-available/
     sudo a2ensite search.conf 2>/dev/null || true
-    sudo a2dissite weinstein.conf 2>/dev/null || true
 fi
 
 # 5. Cleanup
 rm -rf $EXTRACT_TMP $REMOTE_TMP
 
 # 6. Start containers with correct project name and reload Apache
-cd $REMOTE_DIR && docker compose -p search up -d --build
+# BUILD_MODE is set by the PowerShell caller via env var
+if [ "${BUILD_MODE:-none}" = "all" ]; then
+    cd $REMOTE_DIR && docker compose -p search up -d --build
+elif [ "${BUILD_MODE:-none}" = "frontend" ]; then
+    cd $REMOTE_DIR && docker compose -p search up -d --build frontend
+else
+    # No Dockerfile changes - restart services to pick up volume-mounted code changes
+    cd $REMOTE_DIR && docker compose -p search up -d
+    docker compose -p search restart backend worker scheduler 2>/dev/null || true
+fi
 sudo /usr/bin/systemctl reload apache2
 
 echo "Deploy complete."
@@ -173,8 +182,9 @@ if ($LASTEXITCODE -ne 0) { throw "Failed to upload remote deploy script." }
 Remove-Item -Force $scriptPath
 
 # Execute and self-delete
+$buildMode = if ($Build) { "all" } elseif ($BuildFrontend) { "frontend" } else { "none" }
 ssh -o "ProxyCommand=$PROXY_CMD" "${SSH_USER}@${SSH_HOST}" `
-    "bash /tmp/search_remote_deploy.sh; rm -f /tmp/search_remote_deploy.sh"
+    "BUILD_MODE=$buildMode bash /tmp/search_remote_deploy.sh; rm -f /tmp/search_remote_deploy.sh"
 if ($LASTEXITCODE -ne 0) { throw "Remote deploy script failed." }
 
 Write-Host "`n✓ Deployment complete — https://search.562196621.xyz" -ForegroundColor Green
