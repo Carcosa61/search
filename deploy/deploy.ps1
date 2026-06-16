@@ -40,14 +40,16 @@ $EXTRA_FILES  = @(                           # top-level config files to deploy
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 function Write-Step([string]$msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
-function Invoke-Cmd([string[]]$args) {
-    & $args[0] $args[1..($args.Length-1)]
-    if ($LASTEXITCODE -ne 0) { throw "Command failed with exit code $LASTEXITCODE" }
+function Invoke-Cmd {
+    param([string]$exe)
+    $rest = $args  # remaining positional args
+    & $exe @rest
+    if ($LASTEXITCODE -ne 0) { throw "Command '$exe' failed with exit code $LASTEXITCODE" }
 }
 
 # ─── Stage 1: Git ─────────────────────────────────────────────────────────────
 if (-not $SkipGit) {
-    Write-Step "Stage 1 — Git commit & push"
+    Write-Step "Stage 1 - Git commit and push"
 
     $status = git status --short
     if ($status) {
@@ -56,9 +58,9 @@ if (-not $SkipGit) {
         }
         if (-not $Message) { throw "Commit message required." }
 
-        Invoke-Cmd git, add, -A
-        Invoke-Cmd git, commit, -m, $Message
-        Invoke-Cmd git, push, origin, main
+        Invoke-Cmd git add -A
+        Invoke-Cmd git commit -m $Message
+        Invoke-Cmd git push origin main
         Write-Host "  Pushed to origin/main." -ForegroundColor Green
     } else {
         Write-Host "  Nothing to commit." -ForegroundColor Yellow
@@ -68,7 +70,7 @@ if (-not $SkipGit) {
 }
 
 # ─── Stage 2: Package ─────────────────────────────────────────────────────────
-Write-Step "Stage 2 — Packaging"
+Write-Step "Stage 2 - Packaging"
 
 $StagingDir = Join-Path $env:TEMP "weinstein_staging_$(Get-Random)"
 $TarFile    = Join-Path $env:TEMP "weinstein_deploy.tar.gz"
@@ -105,7 +107,7 @@ try {
 }
 
 # ─── Stage 3: Upload ──────────────────────────────────────────────────────────
-Write-Step "Stage 3 — Upload via SCP"
+Write-Step "Stage 3 - Upload via SCP"
 
 scp -o "ProxyCommand=$PROXY_CMD" $TarFile "${SSH_USER}@${SSH_HOST}:$REMOTE_TMP"
 if ($LASTEXITCODE -ne 0) { Remove-Item -Force $TarFile; throw "SCP upload failed." }
@@ -114,7 +116,7 @@ Remove-Item -Force $TarFile
 Write-Host "  Uploaded and local archive deleted." -ForegroundColor Green
 
 # ─── Stage 4: Remote deploy ───────────────────────────────────────────────────
-Write-Step "Stage 4 — Remote deploy"
+Write-Step "Stage 4 - Remote deploy"
 
 $EXTRACT_TMP = "/tmp/weinstein_extract"
 
