@@ -132,10 +132,12 @@ tar -xzf $REMOTE_TMP -C $EXTRACT_TMP
 docker compose -p search down 2>/dev/null || true
 docker compose -p weinstein down 2>/dev/null || true
 
-# 3. Remove old www-data-owned files so we can overwrite them
-sudo rm -rf $REMOTE_DIR/app $REMOTE_DIR/frontend
+# 3. Reclaim ownership of existing files so carcosa can overwrite them
+sudo chown -R carcosa:carcosa $REMOTE_DIR/app 2>/dev/null || true
+sudo chown -R carcosa:carcosa $REMOTE_DIR/frontend 2>/dev/null || true
 
 # 4. Copy fresh files
+rm -rf $REMOTE_DIR/app $REMOTE_DIR/frontend
 cp -r $EXTRACT_TMP/app $REMOTE_DIR/
 cp -r $EXTRACT_TMP/frontend $REMOTE_DIR/
 
