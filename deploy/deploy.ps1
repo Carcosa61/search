@@ -157,7 +157,7 @@ rm -rf $EXTRACT_TMP $REMOTE_TMP
 
 # 6. Start containers with correct project name and reload Apache
 cd $REMOTE_DIR && docker compose -p search up -d --build
-sudo systemctl reload apache2
+sudo /usr/bin/systemctl reload apache2
 
 echo "Deploy complete."
 "@
