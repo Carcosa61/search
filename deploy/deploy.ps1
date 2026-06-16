@@ -23,8 +23,8 @@ $ErrorActionPreference = "Stop"
 # ─── Configuration ────────────────────────────────────────────────────────────
 $SSH_HOST   = "ssh.562196621.xyz"
 $SSH_USER   = "carcosa"
-$REMOTE_DIR = "/var/www/weinstein"
-$REMOTE_TMP = "/tmp/weinstein_deploy.tar.gz"
+$REMOTE_DIR = "/var/www/search"
+$REMOTE_TMP = "/tmp/search_deploy.tar.gz"
 $PROXY_CMD  = "cloudflared access ssh --hostname %h"
 
 # Files/folders to include in the package
@@ -72,8 +72,8 @@ if (-not $SkipGit) {
 # ─── Stage 2: Package ─────────────────────────────────────────────────────────
 Write-Step "Stage 2 - Packaging"
 
-$StagingDir = Join-Path $env:TEMP "weinstein_staging_$(Get-Random)"
-$TarFile    = Join-Path $env:TEMP "weinstein_deploy.tar.gz"
+$StagingDir = Join-Path $env:TEMP "search_staging_$(Get-Random)"
+$TarFile    = Join-Path $env:TEMP "search_deploy.tar.gz"
 
 New-Item -ItemType Directory -Path $StagingDir | Out-Null
 
@@ -118,7 +118,7 @@ Write-Host "  Uploaded and local archive deleted." -ForegroundColor Green
 # ─── Stage 4: Remote deploy ───────────────────────────────────────────────────
 Write-Step "Stage 4 - Remote deploy"
 
-$EXTRACT_TMP = "/tmp/weinstein_extract"
+$EXTRACT_TMP = "/tmp/search_extract"
 
 $remoteBash = @"
 #!/bin/bash
@@ -143,7 +143,7 @@ done
 # Apache config
 if [ -d "$EXTRACT_TMP/apache" ]; then
     sudo cp $EXTRACT_TMP/apache/*.conf /etc/apache2/sites-available/
-    sudo a2ensite weinstein.conf 2>/dev/null || true
+    sudo a2ensite search.conf 2>/dev/null || true
 fi
 
 # 3. Ownership
@@ -161,18 +161,18 @@ echo "Deploy complete."
 "@
 
 # Write with LF line endings — critical on Windows when targeting bash
-$scriptPath = Join-Path $env:TEMP "weinstein_remote_deploy.sh"
+$scriptPath = Join-Path $env:TEMP "search_remote_deploy.sh"
 [System.IO.File]::WriteAllText($scriptPath, $remoteBash.Replace("`r`n", "`n"))
 
 # Upload deploy script
-scp -o "ProxyCommand=$PROXY_CMD" $scriptPath "${SSH_USER}@${SSH_HOST}:/tmp/weinstein_remote_deploy.sh"
+scp -o "ProxyCommand=$PROXY_CMD" $scriptPath "${SSH_USER}@${SSH_HOST}:/tmp/search_remote_deploy.sh"
 if ($LASTEXITCODE -ne 0) { throw "Failed to upload remote deploy script." }
 
 Remove-Item -Force $scriptPath
 
 # Execute and self-delete
 ssh -o "ProxyCommand=$PROXY_CMD" "${SSH_USER}@${SSH_HOST}" `
-    "bash /tmp/weinstein_remote_deploy.sh; rm -f /tmp/weinstein_remote_deploy.sh"
+    "bash /tmp/search_remote_deploy.sh; rm -f /tmp/search_remote_deploy.sh"
 if ($LASTEXITCODE -ne 0) { throw "Remote deploy script failed." }
 
-Write-Host "`n✓ Deployment complete — https://weinstein.562196621.xyz" -ForegroundColor Green
+Write-Host "`n✓ Deployment complete — https://search.562196621.xyz" -ForegroundColor Green

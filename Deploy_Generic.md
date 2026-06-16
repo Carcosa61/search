@@ -33,8 +33,8 @@ All SSH and SCP commands use `cloudflared` as a proxy:
 
 This means `cloudflared` must be installed and authenticated on the machine running the deployment script.
 
-The website will be weinstein.562196621.xyz
-and at www-data /var/www/weinstein
+The website will be search.562196621.xyz
+and at www-data /var/www/search
 
 ---
 
