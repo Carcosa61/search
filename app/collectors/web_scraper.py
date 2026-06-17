@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Entity, RawItem
@@ -80,16 +81,19 @@ def collect_web(db: Session, entities: List[Entity]) -> int:
         if db.query(RawItem).filter(RawItem.content_hash == c_hash).first():
             continue
 
-        db.add(RawItem(
-            source_url=target_url,
-            source_type="web",
-            title=title,
-            content=content,
-            published_at=datetime.now(timezone.utc),
-            content_hash=c_hash,
-        ))
-        new_count += 1
+        try:
+            db.add(RawItem(
+                source_url=target_url,
+                source_type="web",
+                title=title,
+                content=content,
+                published_at=datetime.now(timezone.utc),
+                content_hash=c_hash,
+            ))
+            db.commit()
+            new_count += 1
+        except IntegrityError:
+            db.rollback()
 
-    db.commit()
     logger.info("Web scraper stored %d new items", new_count)
     return new_count

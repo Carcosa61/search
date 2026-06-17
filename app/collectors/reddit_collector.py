@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import List
 
 import requests
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Entity, RawItem
@@ -74,18 +75,21 @@ def collect_reddit(db: Session, entities: List[Entity]) -> int:
                     if db.query(RawItem).filter(RawItem.content_hash == c_hash).first():
                         continue
 
-                    db.add(RawItem(
-                        source_url=link,
-                        source_type="reddit",
-                        title=title,
-                        content=content,
-                        published_at=published_at,
-                        content_hash=c_hash,
-                    ))
-                    new_count += 1
+                    try:
+                        db.add(RawItem(
+                            source_url=link,
+                            source_type="reddit",
+                            title=title,
+                            content=content,
+                            published_at=published_at,
+                            content_hash=c_hash,
+                        ))
+                        db.commit()
+                        new_count += 1
+                    except IntegrityError:
+                        db.rollback()
 
                 time.sleep(RATE_DELAY)
 
-    db.commit()
     logger.info("Reddit collector stored %d new items", new_count)
     return new_count

@@ -8,6 +8,7 @@ from typing import List, Optional
 
 import feedparser
 import requests
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import RawItem
@@ -79,9 +80,12 @@ def collect_feeds(db: Session, feeds: Optional[List[str]] = None) -> int:
                 published_at=published_at,
                 content_hash=c_hash,
             )
-            db.add(item)
-            new_count += 1
+            try:
+                db.add(item)
+                db.commit()
+                new_count += 1
+            except IntegrityError:
+                db.rollback()
 
-    db.commit()
     logger.info("RSS collector stored %d new items", new_count)
     return new_count
