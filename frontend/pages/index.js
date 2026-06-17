@@ -96,7 +96,7 @@ function AlertsSidebar() {
   const { data: alerts } = useSWR("/api/alerts?limit=20", fetcher, { refreshInterval: 30000 });
 
   if (!alerts) return <p className="text-gray-500 text-sm">Loading…</p>;
-  if (alerts.length === 0) return <p className="text-gray-500 text-sm">No alerts.</p>;
+  if (!Array.isArray(alerts) || alerts.length === 0) return <p className="text-gray-500 text-sm">No alerts.</p>;
 
   return (
     <ul className="space-y-3">
