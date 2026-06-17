@@ -130,8 +130,8 @@ set -e
 rm -rf $EXTRACT_TMP && mkdir -p $EXTRACT_TMP
 tar -xzf $REMOTE_TMP -C $EXTRACT_TMP
 
-# 2. Stop running search containers (leave other projects alone)
-docker compose -p search down 2>/dev/null || true
+# 2. Stop app containers but preserve volumes (keeps DB data and password intact)
+docker compose -p search down --volumes=false 2>/dev/null || true
 
 # 3. Reclaim ownership of existing files so carcosa can overwrite them
 sudo chown -R carcosa:carcosa $REMOTE_DIR/app 2>/dev/null || true
@@ -171,6 +171,13 @@ else
     docker compose -p search restart backend worker scheduler 2>/dev/null || true
 fi
 sudo /usr/bin/systemctl reload apache2
+
+# 7. Sync DB password from .env to Postgres (in case container was recreated)
+sleep 3
+DB_PASS=`$(grep '^DB_PASSWORD=' $REMOTE_DIR/.env | cut -d'=' -f2)
+if [ -n "`$DB_PASS" ]; then
+    docker compose -p search exec -T db psql -U monitoring -d monitoring -c "ALTER USER monitoring WITH PASSWORD '`${DB_PASS}';" 2>/dev/null || true
+fi
 
 echo "Deploy complete."
 "@
