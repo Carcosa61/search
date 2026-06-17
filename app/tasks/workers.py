@@ -103,5 +103,5 @@ def enqueue_refresh() -> None:
 # ─── RQ worker entrypoint ────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    with Worker(queues=[q], connection=redis_conn) as worker:
-        worker.work(with_scheduler=False)
+    worker = Worker(queues=[q], connection=redis_conn)
+    worker.work(with_scheduler=False)

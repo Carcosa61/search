@@ -55,7 +55,7 @@ export default function EntityDetail() {
           )}
 
           <Section title="Alerts">
-            {!alerts || alerts.length === 0 ? (
+            {!Array.isArray(alerts) || alerts.length === 0 ? (
               <p className="text-sm text-gray-500">None</p>
             ) : (
               <ul className="space-y-2">
@@ -78,7 +78,7 @@ export default function EntityDetail() {
           <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
             Recent Updates (30 days)
           </h2>
-          {!insights || insights.length === 0 ? (
+          {!Array.isArray(insights) || insights.length === 0 ? (
             <p className="text-gray-500 text-sm">No insights yet.</p>
           ) : (
             insights.map((ins) => <InsightCard key={ins.id} insight={ins} />)
