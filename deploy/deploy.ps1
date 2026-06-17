@@ -149,6 +149,10 @@ done
 # 4. Apache config
 if [ -d "$EXTRACT_TMP/apache" ]; then
     sudo cp $EXTRACT_TMP/apache/*.conf /etc/apache2/sites-available/
+    # Enable required proxy modules
+    sudo a2enmod proxy proxy_http headers 2>/dev/null || true
+    # Ensure Apache listens on port 8097
+    grep -q "^Listen 8097" /etc/apache2/ports.conf || echo "Listen 8097" | sudo tee -a /etc/apache2/ports.conf
     sudo a2ensite search.conf 2>/dev/null || true
 fi
 

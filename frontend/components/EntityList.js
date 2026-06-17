@@ -13,7 +13,7 @@ export default function EntityList() {
   const { data: entities } = useSWR("/api/entity", fetcher, { refreshInterval: 30000 });
 
   if (!entities) return <p className="text-gray-500 text-xs">Loading…</p>;
-  if (entities.length === 0)
+  if (!Array.isArray(entities) || entities.length === 0)
     return <p className="text-gray-500 text-xs">No entities yet.</p>;
 
   return (

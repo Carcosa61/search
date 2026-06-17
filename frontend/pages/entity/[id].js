@@ -38,7 +38,7 @@ export default function EntityDetail() {
         <aside className="col-span-1 space-y-4">
           <Section title="Keywords">
             <div className="flex flex-wrap gap-2">
-              {entity.keywords.map((kw) => (
+              {(entity.keywords ?? []).map((kw) => (
                 <span key={kw} className="px-2 py-0.5 text-xs rounded bg-gray-700 text-gray-300">
                   {kw}
                 </span>
