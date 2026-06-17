@@ -4,7 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import EntityList from "../components/EntityList";
 import InsightCard from "../components/InsightCard";
 
-const fetcher = (url) => fetch(url).then((r) => r.json());
+const fetcher = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
 
 export default function Dashboard() {
   const { data: summary, error } = useSWR("/api/dashboard", fetcher, { refreshInterval: 60000 });
@@ -59,12 +59,12 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">
             Top Insights
           </h2>
-          {summary.top_insights.length === 0 && (
+          {(summary.top_insights ?? []).length === 0 && (
             <p className="text-gray-500 text-sm">
               No insights yet — add entities and run a refresh.
             </p>
           )}
-          {summary.top_insights.map((insight) => (
+          {(summary.top_insights ?? []).map((insight) => (
             <InsightCard key={insight.id} insight={insight} />
           ))}
         </main>

@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import Link from "next/link";
 
-const fetcher = (url) => fetch(url).then((r) => r.json());
+const fetcher = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
 
 const PRIORITY_COLOUR = {
   high: "text-red-400",
