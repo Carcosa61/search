@@ -6,10 +6,38 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Alert, Entity, Insight
+from app.models import Alert, Entity, Insight, RawItem
 from app.schemas import AlertOut, DashboardSummary, InsightOut
+from app.collectors.rss_collector import DEFAULT_FEEDS
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+@router.get("/sources")
+def get_sources():
+    """Return all configured data sources."""
+    return {
+        "rss": [{"url": f, "label": f.split("/")[2]} for f in DEFAULT_FEEDS],
+        "reddit": {
+            "description": "Searches entity keywords across subreddits chosen by entity type",
+            "subreddits_by_type": {
+                "company": ["worldnews", "news", "investing", "stocks", "ukpersonalfinance", "wallstreetbets"],
+                "music": ["worldnews", "news", "music", "metal", "jpop", "jrock", "worldmusic"],
+                "person": ["worldnews", "news", "celebrity", "AMA"],
+                "topic": ["worldnews", "news", "technology", "science", "economics"],
+            },
+        },
+        "regulatory": {
+            "sec_edgar": "https://www.sec.gov/cgi-bin/browse-edgar (8-K filings)",
+            "companies_house": "https://api.company-information.service.gov.uk (UK company search)",
+        },
+        "youtube": {
+            "description": "Monitors YouTube channel RSS feeds for mapped entities",
+        },
+        "web": {
+            "description": "Scrapes web pages for entity keyword mentions",
+        },
+    }
 
 
 @router.get("", response_model=DashboardSummary)
