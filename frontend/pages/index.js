@@ -15,9 +15,16 @@ export default function Dashboard() {
     setRefreshState("loading");
     try {
       await fetch("/api/refresh", { method: "POST" });
-      mutate("/api/dashboard");
       setRefreshState("done");
-      setTimeout(() => setRefreshState("idle"), 3000);
+      // Poll the dashboard every 8s for 90s so new data appears automatically
+      let polls = 0;
+      const interval = setInterval(() => {
+        mutate("/api/dashboard");
+        if (++polls >= 11) {
+          clearInterval(interval);
+          setRefreshState("idle");
+        }
+      }, 8000);
     } catch {
       setRefreshState("idle");
     }

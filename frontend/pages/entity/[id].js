@@ -1,14 +1,16 @@
 import { useRouter } from "next/router";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import InsightCard from "../../components/InsightCard";
+import { useState } from "react";
 
 const fetcher = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
 
 export default function EntityDetail() {
   const router = useRouter();
   const { id } = router.query;
+  const [deleting, setDeleting] = useState(false);
 
   const { data: entity } = useSWR(id ? `/api/entity/${id}` : null, fetcher);
   const { data: insights } = useSWR(
@@ -17,6 +19,20 @@ export default function EntityDetail() {
     { refreshInterval: 60000 }
   );
   const { data: alerts } = useSWR(id ? `/api/alerts?entity_id=${id}&limit=20` : null, fetcher);
+
+  async function handleDelete() {
+    if (!confirm(`Delete "${entity.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/entity/${id}`, { method: "DELETE" });
+      if (res.ok || res.status === 204) {
+        mutate("/api/entity");
+        router.push("/");
+      }
+    } catch {
+      setDeleting(false);
+    }
+  }
 
   if (!entity) return <div className="p-8 text-gray-400">Loading…</div>;
 
@@ -31,6 +47,13 @@ export default function EntityDetail() {
         <span className="px-2 py-0.5 text-xs rounded-full bg-gray-700 text-gray-300">
           {entity.priority}
         </span>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="ml-auto px-3 py-1 text-xs rounded bg-red-900 hover:bg-red-700 text-red-200 disabled:opacity-50 transition-colors"
+        >
+          {deleting ? "Deleting…" : "Delete entity"}
+        </button>
       </header>
 
       <div className="grid grid-cols-3 gap-6 p-6">
