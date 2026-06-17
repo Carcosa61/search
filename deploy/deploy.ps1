@@ -164,7 +164,7 @@ rm -rf $EXTRACT_TMP $REMOTE_TMP
 if [ "${BUILD_MODE:-none}" = "all" ]; then
     cd $REMOTE_DIR && docker compose -p search build --no-cache && docker compose -p search up -d
 elif [ "${BUILD_MODE:-none}" = "frontend" ]; then
-    cd $REMOTE_DIR && docker compose -p search build --no-cache frontend && docker compose -p search up -d frontend
+    cd $REMOTE_DIR && docker compose -p search build --no-cache frontend && docker compose -p search up -d
 else
     # No Dockerfile changes - restart services to pick up volume-mounted code changes
     cd $REMOTE_DIR && docker compose -p search up -d
