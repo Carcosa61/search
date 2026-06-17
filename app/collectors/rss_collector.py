@@ -11,7 +11,7 @@ import requests
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import RawItem
+from app.models import RawItem, Source
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,15 @@ def _content_hash(url: str, title: str, content: str) -> str:
 
 def collect_feeds(db: Session, feeds: Optional[List[str]] = None) -> int:
     """Fetch all configured feeds and store new raw items. Returns count of new items."""
-    feed_urls = feeds or DEFAULT_FEEDS
+    if feeds:
+        feed_urls = feeds
+    else:
+        sources = db.query(Source).filter(
+            Source.type == "rss", Source.is_active == True  # noqa: E712
+        ).all()
+        feed_urls = [s.url for s in sources if s.url]
+        if not feed_urls:
+            feed_urls = DEFAULT_FEEDS  # fallback if DB is empty
     new_count = 0
 
     for feed_url in feed_urls:

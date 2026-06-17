@@ -12,7 +12,7 @@ import requests
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Entity, RawItem
+from app.models import Entity, RawItem, Source
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,17 @@ def collect_companies_house(db: Session, entities: List[Entity]) -> int:
 
 
 def collect_regulatory(db: Session, entities: List[Entity]) -> int:
-    total = collect_sec(db)
-    total += collect_companies_house(db, entities)
+    reg_sources = db.query(Source).filter(
+        Source.type == "regulatory",
+        Source.is_active == True,  # noqa: E712
+    ).all()
+    services = {s.config["service"] for s in reg_sources if s.config and s.config.get("service")}
+    if not services:
+        services = {"sec", "companies_house"}  # fallback
+
+    total = 0
+    if "sec" in services:
+        total += collect_sec(db)
+    if "companies_house" in services:
+        total += collect_companies_house(db, entities)
     return total

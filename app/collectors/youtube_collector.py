@@ -7,10 +7,11 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import feedparser
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Entity, RawItem
+from app.models import Entity, RawItem, Source
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,15 @@ def collect_youtube(db: Session, entities: List[Entity]) -> int:
 
     for entity in entities:
         name_lower = entity.name.lower()
-        channel_ids = ENTITY_CHANNEL_MAP.get(name_lower, [])
+        # Prefer DB sources; fall back to hardcoded map
+        yt_sources = db.query(Source).filter(
+            Source.type == "youtube",
+            Source.is_active == True,  # noqa: E712
+            or_(Source.is_global == True, Source.entity_id == entity.id),  # noqa: E712
+        ).all()
+        channel_ids = [s.config["channel_id"] for s in yt_sources if s.config and s.config.get("channel_id")]
+        if not channel_ids:
+            channel_ids = ENTITY_CHANNEL_MAP.get(name_lower, [])
 
         for channel_id in channel_ids:
             feed_url = YT_CHANNEL_RSS.format(channel_id=channel_id)

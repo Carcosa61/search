@@ -163,6 +163,7 @@ export default function EntityDetail() {
           ) : (
             <ViewMeta entity={entity} alerts={alerts} />
           )}
+          {!editing && <EntitySources entityId={id ? Number(id) : null} />}
         </aside>
 
         {/* Right — insights feed */}
@@ -399,5 +400,98 @@ function Section({ title, children }) {
       <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">{title}</h3>
       {children}
     </div>
+  );
+}
+
+// ── Entity-specific sources ───────────────────────────────────────────────────
+
+const TYPE_BADGE = { rss: "bg-orange-900 text-orange-200", reddit: "bg-red-900 text-red-200", youtube: "bg-red-900 text-red-200", web: "bg-blue-900 text-blue-200", regulatory: "bg-yellow-900 text-yellow-200" };
+const SOURCE_TYPES = ["rss", "reddit", "youtube", "web", "regulatory"];
+
+function EntitySources({ entityId }) {
+  const { data: sources, mutate: mutateSources } = useSWR(entityId ? `/api/source?entity_id=${entityId}` : null, fetcher);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraftState] = useState({ label: "", type: "rss", url: "", _subreddit: "", _channel_id: "", _service: "sec" });
+  const [saving, setSaving] = useState(false);
+
+  function setDraft(field, val) { setDraftState((d) => ({ ...d, [field]: val })); }
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = { label: draft.label, type: draft.type, is_global: false, entity_id: entityId, is_active: true };
+      if (draft.type === "rss" || draft.type === "web") payload.url = draft.url;
+      else if (draft.type === "reddit") payload.config = { subreddit: draft._subreddit };
+      else if (draft.type === "youtube") payload.config = { channel_id: draft._channel_id };
+      else if (draft.type === "regulatory") payload.config = { service: draft._service };
+      await fetch("/api/source", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      mutateSources();
+      setAdding(false);
+      setDraftState({ label: "", type: "rss", url: "", _subreddit: "", _channel_id: "", _service: "sec" });
+    } finally { setSaving(false); }
+  }
+
+  async function handleDelete(id) {
+    await fetch(`/api/source/${id}`, { method: "DELETE" });
+    mutateSources();
+  }
+
+  if (!sources) return null;
+  const entitySources = sources.filter((s) => !s.is_global);
+
+  return (
+    <Section title="Custom Sources">
+      <div className="space-y-1.5 mb-2">
+        {entitySources.length === 0 && !adding && (
+          <p className="text-xs text-gray-500">No entity-specific sources. Global sources still apply.</p>
+        )}
+        {entitySources.map((s) => {
+          const detail = s.url || (s.config ? Object.entries(s.config).map(([k, v]) => `${k}: ${v}`).join(", ") : "");
+          return (
+            <div key={s.id} className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <span className="text-xs text-gray-200">{s.label}</span>
+                <span className={`ml-1.5 px-1 py-0.5 text-xs rounded ${TYPE_BADGE[s.type] || "bg-gray-700 text-gray-300"}`}>{s.type}</span>
+                {detail && <span className="text-xs text-gray-500 ml-1 truncate"> — {detail}</span>}
+              </div>
+              <button onClick={() => handleDelete(s.id)} className="text-red-500 hover:text-red-400 text-xs shrink-0">Delete</button>
+            </div>
+          );
+        })}
+      </div>
+
+      {adding ? (
+        <form onSubmit={handleAdd} className="space-y-2 border-t border-gray-700 pt-2">
+          <div className="flex gap-2">
+            <input required className="flex-1 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500" placeholder="Label" value={draft.label} onChange={(e) => setDraft("label", e.target.value)} />
+            <select className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500" value={draft.type} onChange={(e) => setDraft("type", e.target.value)}>
+              {SOURCE_TYPES.map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          {(draft.type === "rss" || draft.type === "web") && (
+            <input required className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500" placeholder="URL" value={draft.url} onChange={(e) => setDraft("url", e.target.value)} />
+          )}
+          {draft.type === "reddit" && (
+            <input required className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500" placeholder="Subreddit name" value={draft._subreddit} onChange={(e) => setDraft("_subreddit", e.target.value)} />
+          )}
+          {draft.type === "youtube" && (
+            <input required className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500" placeholder="Channel ID (UCxxxxxxxx)" value={draft._channel_id} onChange={(e) => setDraft("_channel_id", e.target.value)} />
+          )}
+          {draft.type === "regulatory" && (
+            <select className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500" value={draft._service} onChange={(e) => setDraft("_service", e.target.value)}>
+              <option value="sec">SEC EDGAR</option>
+              <option value="companies_house">Companies House (UK)</option>
+            </select>
+          )}
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving} className="px-3 py-1 text-xs rounded bg-indigo-700 hover:bg-indigo-600 text-white disabled:opacity-50">Add</button>
+            <button type="button" onClick={() => setAdding(false)} className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-200">Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <button onClick={() => setAdding(true)} className="text-xs text-indigo-400 hover:text-indigo-300 mt-1">+ Add source</button>
+      )}
+    </Section>
   );
 }

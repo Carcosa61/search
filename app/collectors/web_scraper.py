@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Entity, RawItem
+from app.models import Entity, RawItem, Source
 
 logger = logging.getLogger(__name__)
 
@@ -66,34 +66,41 @@ def collect_web(db: Session, entities: List[Entity]) -> int:
     new_count = 0
 
     for entity in entities:
-        # Build target URLs from entity keywords/name
-        search_query = "+".join(entity.keywords[:2])
-        # Use a news aggregator search page as a lightweight stand-in for crawling
-        target_url = f"https://news.google.com/search?q={search_query}&hl=en"
+        # Use entity-specific web sources from DB; fall back to Google News search
+        web_sources = db.query(Source).filter(
+            Source.type == "web",
+            Source.is_active == True,  # noqa: E712
+            Source.entity_id == entity.id,
+        ).all()
+        target_urls = [s.url for s in web_sources if s.url]
+        if not target_urls:
+            search_query = "+".join(entity.keywords[:2])
+            target_urls = [f"https://news.google.com/search?q={search_query}&hl=en"]
 
-        content = scrape_url(target_url)
-        if not content:
-            continue
+        for target_url in target_urls:
+            content = scrape_url(target_url)
+            if not content:
+                continue
 
-        title = f"[Web] {entity.name} — scraped results"
-        c_hash = _hash(target_url, content)
+            title = f"[Web] {entity.name} — scraped results"
+            c_hash = _hash(target_url, content)
 
-        if db.query(RawItem).filter(RawItem.content_hash == c_hash).first():
-            continue
+            if db.query(RawItem).filter(RawItem.content_hash == c_hash).first():
+                continue
 
-        try:
-            db.add(RawItem(
-                source_url=target_url,
-                source_type="web",
-                title=title,
-                content=content,
-                published_at=datetime.now(timezone.utc),
-                content_hash=c_hash,
-            ))
-            db.commit()
-            new_count += 1
-        except IntegrityError:
-            db.rollback()
+            try:
+                db.add(RawItem(
+                    source_url=target_url,
+                    source_type="web",
+                    title=title,
+                    content=content,
+                    published_at=datetime.now(timezone.utc),
+                    content_hash=c_hash,
+                ))
+                db.commit()
+                new_count += 1
+            except IntegrityError:
+                db.rollback()
 
     logger.info("Web scraper stored %d new items", new_count)
     return new_count

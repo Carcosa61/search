@@ -10,7 +10,7 @@ from sqlalchemy import (
     Text,
     Enum,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 import enum
 
@@ -54,6 +54,7 @@ class Entity(Base):
 
     insights = relationship("Insight", back_populates="entity", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="entity", cascade="all, delete-orphan")
+    sources = relationship("Source", back_populates="entity", cascade="all, delete-orphan")
 
 
 class RawItem(Base):
@@ -112,3 +113,20 @@ class Alert(Base):
     is_sent = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     sent_at = Column(DateTime, nullable=True)
+
+
+class Source(Base):
+    """A data source — global (applies to all entities) or entity-specific."""
+    __tablename__ = "sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    label = Column(String(255), nullable=False)
+    type = Column(String(50), nullable=False)   # rss | reddit | youtube | web | regulatory
+    url = Column(Text, nullable=True)            # feed/page URL
+    config = Column(JSONB, nullable=True)        # {"subreddit":"worldnews"} / {"channel_id":"UCxxx"} / {"service":"sec"}
+    is_global = Column(Boolean, default=True, nullable=False)
+    entity_id = Column(Integer, ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    entity = relationship("Entity", back_populates="sources")

@@ -40,17 +40,22 @@ export default function Dashboard() {
         <h1 className="text-xl font-bold tracking-tight text-white">
           Intelligence Monitor
         </h1>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshState === "loading"}
-          className={`px-4 py-1.5 text-sm rounded transition-colors disabled:opacity-60 ${
-            refreshState === "done"
-              ? "bg-green-700 text-green-100"
-              : "bg-indigo-600 hover:bg-indigo-500 text-white"
-          }`}
+        <div className="flex items-center gap-2">
+          <Link href="/sources" className="px-3 py-1.5 text-sm rounded bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors">
+            Sources
+          </Link>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshState === "loading"}
+            className={`px-4 py-1.5 text-sm rounded transition-colors disabled:opacity-60 ${
+              refreshState === "done"
+                ? "bg-green-700 text-green-100"
+                : "bg-indigo-600 hover:bg-indigo-500 text-white"
+            }`}
         >
           {refreshState === "loading" ? "Queuing…" : refreshState === "done" ? "✓ Queued" : "Refresh now"}
-        </button>
+          </button>
+        </div>
       </header>
 
       {/* Stats bar */}

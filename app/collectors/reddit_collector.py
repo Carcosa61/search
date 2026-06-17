@@ -8,10 +8,11 @@ from datetime import datetime, timezone
 from typing import List
 
 import requests
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Entity, RawItem
+from app.models import Entity, RawItem, Source
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +39,23 @@ def _relevant_subreddits(entity: Entity) -> List[str]:
     return base
 
 
+def _get_subreddits(db: Session, entity: Entity) -> List[str]:
+    """Get subreddits from DB (global + entity-specific), falling back to derived defaults."""
+    sources = db.query(Source).filter(
+        Source.type == "reddit",
+        Source.is_active == True,  # noqa: E712
+        or_(Source.is_global == True, Source.entity_id == entity.id),  # noqa: E712
+    ).all()
+    subs = [s.config["subreddit"] for s in sources if s.config and s.config.get("subreddit")]
+    return subs if subs else _relevant_subreddits(entity)
+
+
 def collect_reddit(db: Session, entities: List[Entity]) -> int:
     new_count = 0
     visited: set[str] = set()
 
     for entity in entities:
-        for subreddit in _relevant_subreddits(entity):
+        for subreddit in _get_subreddits(db, entity):
             for keyword in entity.keywords[:3]:  # cap per entity to avoid hammering
                 url = f"{REDDIT_BASE}/r/{subreddit}/search.json"
                 params = {"q": keyword, "sort": "new", "limit": 25, "restrict_sr": "true", "t": "week"}

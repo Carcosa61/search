@@ -97,3 +97,38 @@ class DashboardSummary(BaseModel):
     total_insights_today: int
     unread_alerts: int
     top_insights: List[InsightOut]
+
+
+# ── Source ──────────────────────────────────────────────────────────────────
+
+class SourceCreate(BaseModel):
+    label: str
+    type: str
+    url: Optional[str] = None
+    config: Optional[dict] = None
+    is_global: bool = True
+    entity_id: Optional[int] = None
+    is_active: bool = True
+
+
+class SourceUpdate(BaseModel):
+    label: Optional[str] = None
+    url: Optional[str] = None
+    config: Optional[dict] = None
+    is_global: Optional[bool] = None
+    entity_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class SourceOut(BaseModel):
+    id: int
+    label: str
+    type: str
+    url: Optional[str]
+    config: Optional[dict]
+    is_global: bool
+    entity_id: Optional[int]
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
